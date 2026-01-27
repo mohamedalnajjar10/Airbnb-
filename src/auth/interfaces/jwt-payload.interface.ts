@@ -1,9 +1,9 @@
-import { Role } from '../../common/enums/role.enum';
-import { UserType } from '../../common/enums/user-type.enum';
+import { UserRole, UserType } from '@prisma/client';
+
 export interface JwtPayload {
     sub: string;
     mobile: string;
-    roles: Role[];
+    role: UserRole;
     type: UserType;
     guest?: boolean;
 }

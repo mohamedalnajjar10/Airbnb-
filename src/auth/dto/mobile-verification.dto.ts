@@ -15,6 +15,5 @@ export class VerifyMobileDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsString()
   otp: string;
 }

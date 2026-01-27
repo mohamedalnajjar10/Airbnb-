@@ -278,110 +278,68 @@ export class AuthService {
     };
   }
 
-  
   // ============ OAuth Login ============
-   // async oauthLogin(dto: OAuthLoginDto): Promise<AuthResponse> {
-  //   // This is a placeholder implementation
-  //   // In production, you would validate the OAuth token with the respective provider
-  //   // and extract user information
+  // ========== 1) Google Auth URL ==========
+  getGoogleAuthUrl(): string {
+    const clientId = process.env.GOOGLE_CLIENT_ID!;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI!;
 
-  //   let user = await this.prisma.user.findFirst({
-  //     where: {
-  //       oauthProvider: dto.provider,
-  //       oauthId: dto.accessToken, // In real implementation, this would be the OAuth user ID
-  //     },
-  //   });
+    const scope = [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+    ].join(' ');
 
-  //   if (!user) {
-  //     // Create new user from OAuth
-  //     const mobile = dto.email || `oauth_${dto.provider}_${Date.now()}`;
-  //     user = await this.prisma.user.create({
-  //       data: {
-  //         fullName: dto.fullName || 'OAuth User',
-  //         mobile,
-  //         email: dto.email,
-  //         type: UserType.HOST,
-  //         role: UserRole.HOST,
-  //         isVerified: true, // OAuth users are considered verified
-  //         oauthProvider: dto.provider,
-  //         oauthId: dto.accessToken,
-  //       },
-  //     });
-  //   }
-
-  //   const tokenPayload = {
-  //     sub: user.id,
-  //     mobile: user.mobile,
-  //     role: user.role,
-  //     type: user.type,
-  //     isVerified: user.isVerified,
-  //   };
-
-  //   const accessToken = this.signToken(tokenPayload);
-  //   const refreshToken = await this.createRefreshToken(user.id, true);
-
-  //   return {
-  //     accessToken,
-  //     refreshToken,
-  //     user: this.createSafeUser(user),
-  //     expiresIn: this.getNum('JWT_EXPIRES_IN', 3600),
-  //   };
-  // }
-  
+    return (
+      'https://accounts.google.com/o/oauth2/v2/auth?' +
+      `response_type=code&client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&scope=${encodeURIComponent(scope)}`
+    );
+  }
+  // ========== 2) Handle Google Login ==========
   async googleLogin(code: string) {
     const { tokens } = await this.googleClient.getToken(code);
-    this.googleClient.setCredentials(tokens);
 
-    const userInfo = await this.googleClient.request({
-      url: 'https://www.googleapis.com/oauth2/v3/userinfo',
+    const idToken = tokens.id_token;
+    if (!idToken) throw new UnauthorizedException('Google authentication failed');
+
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const profile = userInfo.data as {
-      sub: string;
-      name: string;
-      email: string;
-      picture?: string;
-    };
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email)
+      throw new UnauthorizedException('Google user info not found');
 
-    if (!profile || !profile.email) {
-      throw new UnauthorizedException('Google login failed');
-    }
+    const { sub, email, name, picture } = payload;
 
-    let user = await this.prisma.user.findUnique({
-      where: { email: profile.email },
+    const user = await this.prisma.user.upsert({
+      where: { email },
+      create: {
+        fullName: name ?? 'Google User',
+        email,
+        mobile: `google_${sub}`,
+        oauthProvider: 'google',
+        oauthId: sub,
+        type: UserType.GUEST,
+        role: UserRole.GUEST,
+        isVerified: true,
+      },
+      update: {
+        fullName: name,
+      },
     });
 
-    if (!user) {
-      user = await this.prisma.user.create({
-        data: {
-          fullName: profile.name,
-          email: profile.email,
-          mobile: `google_${profile.sub}`,
-          oauthProvider: 'google',
-          oauthId: profile.sub,
-          type: UserType.GUEST,
-          role: UserRole.GUEST,
-          isVerified: true,
-        },
-      });
-    }
-
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      type: user.type,
-    };
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const jwtPayload = { sub: user.id, email: user.email, role: user.role, type: user.type };
 
     return {
-      accessToken,
-      refreshToken,
+      accessToken: this.jwtService.sign(jwtPayload),
+      refreshToken: this.jwtService.sign(jwtPayload, { expiresIn: '7d' }),
       user,
     };
   }
+
 
   // ============ Refresh Token ============
   async refreshToken(dto: RefreshTokenDto): Promise<{ accessToken: string; refreshToken: string }> {

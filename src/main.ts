@@ -5,10 +5,16 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filter/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filter/prisma-exception.filter';
-
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
+
+  // Stripe webhook requires raw body
+  app.use('/bookings/webhook', bodyParser.raw({ type: '*/*' }));
+
   const configService = app.get(ConfigService)
 
   //Global Prefix for all routes
@@ -51,6 +57,6 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+  console.log(`📚 API Documentation: http://localhost:${port}${apiPrefix}/docs`);
 }
 bootstrap();

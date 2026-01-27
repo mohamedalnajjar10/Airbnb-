@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, Query, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, HttpCode, HttpStatus, Query, Res } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -8,13 +8,19 @@ import { Response } from 'express';
 import { MobileVerificationDto, VerifyMobileDto } from './dto/mobile-verification.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ResetDto } from './dto/reset.dto';
+// import { GoogleOauthService } from './google-oauth.service';
+import { OAuthLoginDto } from './dto/oauth-login.dto';
+import { Code } from 'typeorm';
 
 
 @ApiTags('Authentication')
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    // private readonly googleOauth: GoogleOauthService,
+  ) { }
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
@@ -33,32 +39,51 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  // @Get('google')
+  // @HttpCode(HttpStatus.OK)
+  // @ApiOperation({ summary: 'Redirect to Google OAuth' })
+  // async redirectToGoogle(@Res() res: Response) {
+  //   const url = this.googleOauth.getRedirectUrl();
+  //   return res.redirect(url);
+  // }
+
+  // @Get('google/callback')
+  // @ApiOperation({ summary: 'Google OAuth callback' })
+  // async googleCallback(@Query('code') code: string) {
+  //   const result = await this.authService.loginWithGoogle(code);
+  //   // ربما ترسل النتيجة أو تحوّل إلى واجهة معينة
+  //   return result;
+  // }
+
   // @Post('oauth-login')
   // @HttpCode(HttpStatus.OK)
   // @ApiOperation({ summary: 'Login with OAuth provider' })
   // @ApiResponse({ status: 200, description: 'OAuth login successful' })
   // @ApiResponse({ status: 401, description: 'Invalid OAuth token' })
-  // async oauthLogin(@Body() dto: OAuthLoginDto) {
-  //   return this.authService.oauthLogin(dto);
+  // async oauthLogin(
+  //   @Body() dto: OAuthLoginDto,
+  //   @Query('code') code: string,
+  // ) {
+  //   return this.authService.googleLogin(code);
   // }
 
-  @Get('google')
-  async redirectToGoogle(@Res() res: Response) {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-    const scope = [
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-    ].join(' ');
 
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}`;
-    return res.redirect(url);
-  }
+  // @Get('google')
+  // redirectToGoogle(@Res() res: Response) {
+  //   return res.redirect(this.authService.getGoogleAuthUrl());
+  // }
 
-  @Get('google/callback')
-  async googleCallback(@Query('code') code: string) {
-    return this.authService.googleLogin(code);
-  }
+  // @Get('google/callback')
+  // async googleCallback(@Query('code') code: string, @Res() res: Response) {
+  //   const result = await this.authService.googleLogin(code);
+  //   return res.status(HttpStatus.OK).json(result);
+  // }
+
+  // // 3) Optional endpoint for Postman
+  // @Post('oauth-login')
+  // async oauthLogin(@Query('code') code: string) {
+  //   return this.authService.googleLogin(code);
+  // }
 
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
