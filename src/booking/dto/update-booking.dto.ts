@@ -1,11 +1,13 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { BookingStatus } from '@prisma/client';
 
 export class UpdateBookingDto {
-    @IsString()
-    @IsOptional()
-    status?: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  @IsEnum(BookingStatus)
+  @IsOptional()
+  status?: BookingStatus;
 
-    @IsString()
-    @IsOptional()
-    cancellationReason?: string;
+  @IsString()
+  @MaxLength(500)
+  @IsOptional()
+  cancellationReason?: string;
 }

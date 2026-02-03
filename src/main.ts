@@ -5,21 +5,21 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { HttpExceptionFilter } from './common/filter/http-exception.filter';
 import { PrismaExceptionFilter } from './common/filter/prisma-exception.filter';
-import * as bodyParser from 'body-parser';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    rawBody: true,
+    // rawBody: true,
   });
-
-  // Stripe webhook requires raw body
-  app.use('/bookings/webhook', bodyParser.raw({ type: '*/*' }));
 
   const configService = app.get(ConfigService)
 
   //Global Prefix for all routes
   const apiPrefix = configService.get('API_PREFIX') || 'api/v1';
   app.setGlobalPrefix(apiPrefix);
+
+  // Stripe webhook requires raw body - handled by NestJS rawBody: true option
+  app.use(`/${apiPrefix}/bookings/webhook`, express.raw({ type: '*/*' }));
 
   // Enable CORS
   app.enableCors({

@@ -1,13 +1,12 @@
-import { IsUUID, IsDateString } from 'class-validator';
-
+import { IsDateString, IsUUID } from 'class-validator';
 
 export class CreateBookingDto {
-    @IsUUID()
-    listingId: string;
+  @IsUUID()
+  listingId!: string;
 
-    @IsDateString()
-    startDate: string;
+  @IsDateString()
+  startDate!: string;
 
-    @IsDateString()
-    endDate: string;
+  @IsDateString()
+  endDate!: string;
 }

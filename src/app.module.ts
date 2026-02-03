@@ -7,7 +7,6 @@ import { AuthModule } from './auth/auth.module';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ListingModule } from './listing/listing.module';
 import { BookingModule } from './booking/booking.module';
-import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -29,7 +28,6 @@ import { ChatModule } from './chat/chat.module';
     AuthModule,
     ListingModule,
     BookingModule,
-    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
