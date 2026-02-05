@@ -20,6 +20,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 export class BookingController {
   constructor(private readonly bookingService: BookingService) { }
 
+  // Stripe Checkout
   @Post('checkout')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
@@ -30,18 +31,12 @@ export class BookingController {
     return this.bookingService.createCheckoutSession(userId, dto);
   }
 
-  /**
-   * Stripe Webhook
-   * NOTE: main.ts sets express.raw() only for this path, so req.body is Buffer here.
-   */
+
+  //Stripe Webhook
+
   @Post('webhook')
   async stripeWebhook(@Req() req: any, @Headers('stripe-signature') sig: string) {
-    console.log('>>> WEBHOOK HIT', new Date().toISOString());
-    console.log('>>> stripe-signature exists?', !!sig);
-    console.log('>>> content-type:', req.headers['content-type']);
-
     const rawBody: Buffer = req.body;
-    console.log('>>> rawBody is Buffer?', Buffer.isBuffer(rawBody), 'len=', rawBody?.length);
 
     if (!Buffer.isBuffer(rawBody)) throw new BadRequestException('Body is not Buffer (raw)');
     if (!sig) throw new BadRequestException('Missing stripe-signature');
@@ -49,7 +44,7 @@ export class BookingController {
     return this.bookingService.handleStripeWebhook(rawBody, sig);
   }
 
-  // Redirect pages (temporary)
+  // Stripe Redirect pages (temporary)
   @Get('success')
   success(@Query('session_id') sessionId: string) {
     return {
@@ -67,10 +62,50 @@ export class BookingController {
     };
   }
 
-  /**
-   * DEBUG: shows current DATABASE_URL the app uses
-   * Remove after debugging
-   */
+  // PayPal Checkout
+  @Post('paypal/checkout')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiBody({ type: CreateBookingDto })
+  async createPaypalCheckout(@Body() dto: CreateBookingDto, @Req() req: any) {
+    const userId: string | undefined = req?.user?.sub;
+    if (!userId) throw new UnauthorizedException();
+    return this.bookingService.createPaypalOrder(userId, dto);
+  }
+
+  // Optional: capture endpoint (if your client captures after approve)
+  @Post('paypal/capture')
+  async capturePaypal(@Body() body: { orderId: string }) {
+    if (!body?.orderId) throw new BadRequestException('orderId is required');
+    return this.bookingService.capturePaypalOrder(body.orderId);
+  }
+
+
+  //PayPal Webhook
+
+  @Post('paypal/webhook')
+  async paypalWebhook(@Req() req: any) {
+    const rawBody: Buffer = req.body;
+
+    if (!Buffer.isBuffer(rawBody)) {
+      throw new BadRequestException('Body is not Buffer (raw)');
+    }
+
+    return this.bookingService.handlePaypalWebhook(rawBody, req.headers);
+  }
+
+  // PayPal redirect pages (optional)
+  @Get('paypal/success')
+  paypalSuccess() {
+    return { ok: true, message: 'PayPal success redirect' };
+  }
+
+  @Get('paypal/cancel')
+  paypalCancel() {
+    return { ok: false, message: 'PayPal cancelled' };
+  }
+
+  // DEBUG endpoints (unchanged)
   @Get('debug/db')
   debugDb() {
     return {
@@ -80,11 +115,6 @@ export class BookingController {
     };
   }
 
-  /**
-   * DEBUG: check payment by session id quickly
-   * Example:
-   *  GET /api/v1/bookings/debug/payment?sessionId=cs_test_...
-   */
   @Get('debug/payment')
   async debugPayment(@Query('sessionId') sessionId: string) {
     if (!sessionId) throw new BadRequestException('sessionId is required');

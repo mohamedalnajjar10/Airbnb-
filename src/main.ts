@@ -19,7 +19,10 @@ async function bootstrap() {
   app.setGlobalPrefix(apiPrefix);
 
   // Stripe webhook requires raw body - handled by NestJS rawBody: true option
-  app.use(`/${apiPrefix}/bookings/webhook`, express.raw({ type: '*/*' }));
+  // app.use(`/${apiPrefix}/bookings/webhook`, express.raw({ type: '*/*' }));
+
+  // Paypal webhook requires raw body - handled by NestJS rawBody: true option
+  app.use(`/${apiPrefix}/bookings/paypal/webhook`, express.raw({ type: '*/*' }));
 
   // Enable CORS
   app.enableCors({

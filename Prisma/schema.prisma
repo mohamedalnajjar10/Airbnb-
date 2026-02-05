@@ -50,6 +50,7 @@ enum PaymentStatus {
 enum PaymentMethod {
   STRIPE
   CASH
+  PAYPAL
 }
 
 enum CallStatus {
@@ -90,9 +91,6 @@ model User {
   otps                  OtpCode[]           @relation("UserOtps")
   listings              Listing[]
   bookings              Booking[]
-  uploadedFiles         FileUpload[]
-  notifications         Notification[]
-  conversationUsers     ConversationUser[]
 
   @@index([mobile])
   @@index([email])
@@ -229,21 +227,27 @@ model CalendarItem {
 }
 
 model Payment {
-  id                    String              @id @default(uuid())
-  bookingId             String              @unique
-  amount                Decimal             @db.Decimal(10, 2)
-  currency              String              @default("SAR")
-  status                PaymentStatus       @default(PENDING)
-  paymentMethod         PaymentMethod       @default(STRIPE)
-  stripePaymentId       String?             @unique
+  id                    String        @id @default(uuid())
+  bookingId             String        @unique
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("SAR")
+  status                PaymentStatus @default(PENDING)
+  paymentMethod         PaymentMethod @default(STRIPE)
+
+  stripePaymentId       String?       @unique
   stripeClientSecret    String?
-  refundAmount          Decimal?            @db.Decimal(10, 2)
+
+  // NEW PayPal fields
+  paypalOrderId         String?       @unique
+  paypalCaptureId       String?       @unique
+
+  refundAmount          Decimal?      @db.Decimal(10, 2)
   refundedAt            DateTime?
   metadata              Json?
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
-  booking               Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking               Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([stripePaymentId])
@@ -251,21 +255,4 @@ model Payment {
   @@map("payments")
 }
 
-model Notification {
-  id                    String              @id @default(uuid())
-  userId                String
-  type                  NotificationType
-  title                 String
-  message               String              @db.LongText
-  data                  String?
-  isRead                Boolean             @default(false)
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-
-  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([isRead])
-  @@map("notifications")
-}
 
